@@ -3,6 +3,8 @@
    Handles 200MB+ files entirely in browser - no upload needed
    ========================================================================== */
 
+console.log('VCF Worker script loading...');
+
 // Phone Normalization (matches Python engine)
 class PhoneNormalizer {
     constructor(formatType = 'international') {
@@ -19,7 +21,8 @@ class PhoneNormalizer {
 
     isNigerian(phone) {
         const normalized = phone.replace(/[\s\-\(\)\.\+]/g, '');
-        return normalized.startsWith(('234,080,081,090,070,091,071,082,083,084,085,086,087,088,089,092,093,094,095,096,097,098,099').split(','));
+        const nigerianPrefixes = ['234','080','081','090','070','091','071','082','083','084','085','086','087','088','089','092','093','094','095','096','097','098','099'];
+        return nigerianPrefixes.some(p => normalized.startsWith(p));
     }
 }
 

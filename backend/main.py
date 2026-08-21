@@ -1,12 +1,8 @@
 from fastapi import FastAPI, File, UploadFile, Form, HTTPException
-from fastapi.responses import FileResponse, JSONResponse
+from fastapi.responses import Response, JSONResponse
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.staticfiles import StaticFiles
-import tempfile
-import os
-import json
 import uuid
-from typing import List, Optional
+from typing import List
 from engine import VCFEngine
 
 app = FastAPI(title="ALITE VCF Manager", description="VCF Contact Cleaner & Merger - Made by Alite | myalite.vercel.app")
@@ -18,9 +14,6 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
-
-TEMP_DIR = os.path.join(os.path.dirname(__file__), "..", "temp")
-os.makedirs(TEMP_DIR, exist_ok=True)
 
 processing_sessions = {}
 
@@ -37,8 +30,6 @@ async def upload_files(
     duplicate_strategy: str = Form("first")
 ):
     session_id = str(uuid.uuid4())
-    session_dir = os.path.join(TEMP_DIR, session_id)
-    os.makedirs(session_dir, exist_ok=True)
 
     files_content = []
     for file in files:
@@ -61,27 +52,12 @@ async def upload_files(
 
     result = engine.process_files(files_content, options)
 
-    all_vcf_path = os.path.join(session_dir, "ALL_CONTACTS.vcf")
-    unique_vcf_path = os.path.join(session_dir, "UNIQUE_CONTACTS.vcf")
-    duplicates_vcf_path = os.path.join(session_dir, "DUPLICATES.vcf")
-    report_path = os.path.join(session_dir, "REPORT.txt")
-
-    with open(all_vcf_path, 'w') as f:
-        f.write(result['all_vcf'])
-    with open(unique_vcf_path, 'w') as f:
-        f.write(result['unique_vcf'])
-    with open(duplicates_vcf_path, 'w') as f:
-        f.write(result['duplicates_vcf'])
-    with open(report_path, 'w') as f:
-        f.write(result['report'])
-
     processing_sessions[session_id] = {
-        'dir': session_dir,
-        'files': {
-            'all': all_vcf_path,
-            'unique': unique_vcf_path,
-            'duplicates': duplicates_vcf_path,
-            'report': report_path
+        'outputs': {
+            'all': result['all_vcf'],
+            'unique': result['unique_vcf'],
+            'duplicates': result['duplicates_vcf'],
+            'report': result['report']
         },
         'stats': result['stats'],
         'contacts': result['contacts']
@@ -100,21 +76,25 @@ async def download_file(session_id: str, file_type: str):
         raise HTTPException(status_code=404, detail="Session not found")
 
     session = processing_sessions[session_id]
+    outputs = session['outputs']
+
     file_map = {
-        'all': ('ALL_CONTACTS.vcf', session['files']['all']),
-        'unique': ('UNIQUE_CONTACTS.vcf', session['files']['unique']),
-        'duplicates': ('DUPLICATES.vcf', session['files']['duplicates']),
-        'report': ('REPORT.txt', session['files']['report'])
+        'all': ('ALL_CONTACTS.vcf', outputs['all'], 'text/vcard'),
+        'unique': ('UNIQUE_CONTACTS.vcf', outputs['unique'], 'text/vcard'),
+        'duplicates': ('DUPLICATES.vcf', outputs['duplicates'], 'text/vcard'),
+        'report': ('REPORT.txt', outputs['report'], 'text/plain')
     }
 
     if file_type not in file_map:
         raise HTTPException(status_code=400, detail="Invalid file type")
 
-    filename, filepath = file_map[file_type]
-    if not os.path.exists(filepath):
-        raise HTTPException(status_code=404, detail="File not found")
+    filename, content, media_type = file_map[file_type]
 
-    return FileResponse(filepath, filename=filename, media_type='text/vcard' if file_type != 'report' else 'text/plain')
+    return Response(
+        content=content,
+        media_type=media_type,
+        headers={"Content-Disposition": f'attachment; filename="{filename}"'}
+    )
 
 
 @app.get("/api/preview/{session_id}")
@@ -137,12 +117,6 @@ async def get_preview(session_id: str, page: int = 1, limit: int = 50):
 @app.delete("/api/session/{session_id}")
 async def cleanup_session(session_id: str):
     if session_id in processing_sessions:
-        session = processing_sessions[session_id]
-        for filepath in session['files'].values():
-            if os.path.exists(filepath):
-                os.remove(filepath)
-        if os.path.exists(session['dir']):
-            os.rmdir(session['dir'])
         del processing_sessions[session_id]
     return {"message": "Cleaned up"}
 

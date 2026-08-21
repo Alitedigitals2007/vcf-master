@@ -1,0 +1,139 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ALITE VCF Manager - Merge • Clean • Detect • Rename • Export</title>
+    <link rel="stylesheet" href="styles.css">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+</head>
+<body>
+    <div class="app-container">
+        <header class="header">
+            <div class="logo">
+                <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/>
+                    <circle cx="12" cy="10" r="3"/>
+                </svg>
+                <span>ALITE VCF MANAGER</span>
+            </div>
+            <p class="tagline">Merge • Clean • Detect • Rename • Export</p>
+        </header>
+
+        <main class="main-content">
+            <section class="upload-section" id="uploadSection">
+                <h2>📁 VCF FILES</h2>
+                <div class="drop-zone" id="dropZone">
+                    <input type="file" id="fileInput" multiple accept=".vcf" hidden>
+                    <div class="drop-content">
+                        <svg class="drop-icon" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+                            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+                            <polyline points="17 8 12 3 7 8"/>
+                            <line x1="12" y1="3" x2="12" y2="15"/>
+                        </svg>
+                        <p class="drop-text">Drag & drop VCF files here</p>
+                        <p class="drop-hint">or click to browse</p>
+                    </div>
+                </div>
+                <div class="file-list" id="fileList"></div>
+                <div class="file-actions">
+                    <button class="btn btn-secondary" id="addFilesBtn">Add Files</button>
+                    <button class="btn btn-secondary" id="clearBtn">Clear</button>
+                </div>
+            </section>
+
+            <section class="options-section">
+                <h2>⚙️ PROCESSING OPTIONS</h2>
+                <div class="options-grid">
+                    <label class="option-item">
+                        <input type="checkbox" id="mergeFiles" checked>
+                        <span>Merge all VCF files</span>
+                    </label>
+                    <label class="option-item">
+                        <input type="checkbox" id="detectDuplicates" checked>
+                        <span>Detect duplicate numbers</span>
+                    </label>
+                    <label class="option-item">
+                        <input type="checkbox" id="removeDuplicates" checked>
+                        <span>Remove duplicates</span>
+                    </label>
+                    <label class="option-item">
+                        <input type="checkbox" id="normalizeNumbers" checked>
+                        <span>Normalize Nigerian/international numbers</span>
+                    </label>
+                    <label class="option-item">
+                        <input type="checkbox" id="renameContacts">
+                        <span>Rename contacts</span>
+                    </label>
+                </div>
+                <div class="naming-format" id="namingFormat" style="display: none;">
+                    <label>Name format:</label>
+                    <div class="input-group">
+                        <input type="text" id="prefixInput" value="Contact" placeholder="Prefix">
+                        <span class="format-preview">{number}</span>
+                    </div>
+                    <label class="option-item">
+                        <input type="checkbox" id="renameDuplicatesOnly">
+                        <span>Only rename duplicates (keep original names for unique)</span>
+                    </label>
+                </div>
+                <div class="format-options">
+                    <label>Phone format:</label>
+                    <div class="radio-group">
+                        <label><input type="radio" name="format" value="international" checked> +234XXXXXXXXXX</label>
+                        <label><input type="radio" name="format" value="local"> 0XXXXXXXXXX</label>
+                    </div>
+                </div>
+                <div class="duplicate-strategy">
+                    <label>Duplicate handling:</label>
+                    <select id="duplicateStrategy">
+                        <option value="first">Keep first occurrence</option>
+                        <option value="last">Keep last occurrence</option>
+                    </select>
+                </div>
+            </section>
+
+            <button class="btn btn-primary btn-process" id="processBtn" disabled>
+                <span class="btn-text">PROCESS FILES</span>
+                <span class="btn-loader" style="display: none;"></span>
+            </button>
+        </main>
+
+        <section class="results-section" id="resultsSection" style="display: none;">
+            <h2>📊 RESULTS</h2>
+            <div class="stats-grid" id="statsGrid"></div>
+            
+            <div class="preview-section">
+                <h3>Contact Preview</h3>
+                <div class="table-container">
+                    <table id="previewTable">
+                        <thead>
+                            <tr>
+                                <th>#</th>
+                                <th>Original Name</th>
+                                <th>Phone Number</th>
+                                <th>Status</th>
+                            </tr>
+                        </thead>
+                        <tbody id="previewBody"></tbody>
+                    </table>
+                </div>
+                <div class="pagination" id="pagination"></div>
+            </div>
+
+            <div class="download-section">
+                <button class="btn btn-success" id="downloadAll">Download All Contacts</button>
+                <button class="btn btn-success" id="downloadUnique">Download Unique Contacts</button>
+                <button class="btn btn-warning" id="downloadDuplicates">Download Duplicates</button>
+                <button class="btn btn-info" id="downloadReport">Download Report</button>
+            </div>
+        </section>
+    </div>
+
+    <footer class="footer">
+        Made by Alite | <a href="https://myalite.vercel.app" target="_blank">myalite.vercel.app</a>
+    </footer>
+
+    <script src="app.js"></script>
+</body>
+</html>

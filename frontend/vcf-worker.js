@@ -3,7 +3,8 @@
    Handles 200MB+ files entirely in browser - no upload needed
    ========================================================================== */
 
-console.log('VCF Worker script loading...');
+try {
+    console.log('VCF Worker script loading...');
 
 // Phone Normalization (matches Python engine)
 class PhoneNormalizer {
@@ -400,3 +401,8 @@ self.addEventListener('unhandledrejection', function(event) {
     console.error('Worker unhandled rejection:', event.reason);
     self.postMessage({ type: 'error', error: 'Unhandled rejection: ' + event.reason });
 });
+
+} catch (e) {
+    console.error('Worker top-level error:', e);
+    self.postMessage({ type: 'error', error: 'Top-level: ' + e.message + ' (stack: ' + e.stack + ')' });
+}

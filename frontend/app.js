@@ -74,6 +74,9 @@ function checkWorkerSupport() {
             worker.onmessage = handleWorkerMessage;
             worker.onerror = handleWorkerError;
             console.log('Worker initialized successfully');
+            
+            // Test worker with ping
+            worker.postMessage({ type: 'ping' });
         } catch (e) {
             console.error('Worker creation failed:', e);
             showToast('Worker init failed: ' + e.message, 'error');
@@ -102,9 +105,10 @@ function handleWorkerMessage(e) {
 function handleWorkerError(err) {
     console.error('Worker error event:', err);
     // ErrorEvent has: message, filename, lineno, colno, error
-    const msg = err?.message || err?.error?.message || (err?.filename ? err.filename + ':' + err.lineno : '') || 'Unknown error';
+    const msg = err?.message || err?.error?.message || (err?.filename ? err.filename + ':' + err.lineno : '') || (err?.type ? 'Worker ' + err.type : '') || 'Unknown error';
     showToast('Worker error: ' + msg, 'error');
     setLoading(false);
+    showProgress(false);
 }
 
 // Bind Events
@@ -296,12 +300,12 @@ async function processFilesLocal() {
         
         console.log('Sending to worker:', fileData.length, 'files, total chars:', fileData.reduce((sum, f) => sum + f.content.length, 0));
         
-        // Add timeout to detect worker hang
+        // Add timeout - 5 minutes for large files
         const timeout = setTimeout(() => {
-            showToast('Worker timeout - no response after 30s', 'error');
+            showToast('Worker timeout (5min) - file may be too large for browser processing', 'error');
             setLoading(false);
             showProgress(false);
-        }, 30000);
+        }, 300000); // 5 minutes
 
         // Listen for first response
         const handleMessage = (e) => {

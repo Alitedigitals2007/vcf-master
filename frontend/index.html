@@ -126,20 +126,20 @@
             <section class="card" id="processingMode" hidden>
                 <h2>Processing Mode</h2>
                 <div class="mode-options">
-                    <label class="mode-option" id="serverOption">
-                        <input type="radio" name="processingMode" value="server" checked>
-                        <div class="mode-info">
-                            <strong>Server Processing</strong>
-                            <span>Upload to cloud (max 4.5MB)</span>
-                        </div>
-                    </label>
-                    <label class="mode-option" id="localOption">
-                        <input type="radio" name="processingMode" value="local">
-                        <div class="mode-info">
-                            <strong>Local Processing</strong>
-                            <span>Process in browser (up to 200MB+)</span>
-                        </div>
-                    </label>
+<label class="mode-option" id="serverOption">
+    <input type="radio" name="processingMode" value="server">
+    <div class="mode-info">
+        <strong>Server Processing</strong>
+        <span>Upload to cloud (max 4.5MB)</span>
+    </div>
+</label>
+<label class="mode-option" id="localOption">
+    <input type="radio" name="processingMode" value="local" checked>
+    <div class="mode-info">
+        <strong>Local Processing</strong>
+        <span>Process in browser (up to 200MB+)</span>
+    </div>
+</label>
                 </div>
                 <p class="mode-hint" id="sizeWarning" hidden>⚠️ Total size exceeds 4MB server limit. Enable Local Processing.</p>
             </section>

@@ -15,7 +15,7 @@ let allContacts = [];
 const PAGE_LIMIT = 50;
 let activeTab = 'preview';
 let selectedFiles = [];
-let useLocalProcessing = false;
+let useLocalProcessing = true;
 let worker = null;
 
 // DOM Elements
@@ -62,6 +62,8 @@ const progressStage = document.getElementById('progressStage');
 function init() {
     bindEvents();
     updatePrefixPreview();
+    // Set default mode to local
+    setProcessingMode('local');
     checkWorkerSupport();
 }
 
@@ -316,13 +318,34 @@ function updateProgress(data) {
 }
 
 function finishLocalProcessing(result) {
-    allContacts = result.contacts;
+    // Normalize contacts from camelCase (worker) to snake_case (frontend)
+    const normalizeContact = (c) => ({
+        name: c.name,
+        phones: c.phones,
+        emails: c.emails,
+        normalized_phones: c.normalizedPhones,
+        is_duplicate: c.isDuplicate,
+        duplicate_group: c.duplicateGroup
+    });
+    
+    allContacts = result.contacts.map(normalizeContact);
     currentSessionId = 'local-' + Date.now();
     
     // Store results for downloads
     window.localResults = result;
     
-    showResults(result.stats);
+    // Normalize stats from camelCase (worker) to snake_case (frontend)
+    const stats = result.stats;
+    const normalizedStats = {
+        files_processed: stats.filesProcessed || 1,
+        total_contacts: stats.totalContacts,
+        unique_contacts: stats.uniqueContacts,
+        duplicate_entries: stats.duplicateEntries,
+        duplicate_numbers: stats.duplicateNumbers,
+        most_duplicated: stats.mostDuplicated
+    };
+    
+    showResults(normalizedStats);
     showResultsView();
     showProgress(false);
     setLoading(false);
@@ -430,8 +453,8 @@ function renderPreview(contacts, total) {
         return;
     }
     tableBody.innerHTML = contacts.map((c, i) => {
-        const phone = c.normalizedPhones?.[0] || c.phones?.[0] || 'N/A';
-        return `<tr><td>${(currentPage-1)*PAGE_LIMIT+i+1}</td><td>${escapeHtml(c.name||'Unknown')}</td><td><code>${escapeHtml(phone)}</code></td><td><span class="status ${c.isDuplicate?'duplicate':'unique'}">${c.isDuplicate?'Duplicate':'Unique'}</span></td></tr>`;
+        const phone = c.normalized_phones?.[0] || c.phones?.[0] || 'N/A';
+        return `<tr><td>${(currentPage-1)*PAGE_LIMIT+i+1}</td><td>${escapeHtml(c.name||'Unknown')}</td><td><code>${escapeHtml(phone)}</code></td><td><span class="status ${c.is_duplicate?'duplicate':'unique'}">${c.is_duplicate?'Duplicate':'Unique'}</span></td></tr>`;
     }).join('');
     renderPagination(total);
 }
@@ -464,7 +487,7 @@ function switchTab(tab) {
 }
 
 function renderDuplicates() {
-    const dupes = allContacts.filter(c => c.isDuplicate);
+    const dupes = allContacts.filter(c => c.is_duplicate);
     if (!dupes.length) {
         duplicatesList.innerHTML = '';
         noDuplicates.hidden = false;
@@ -475,9 +498,9 @@ function renderDuplicates() {
     duplicatesBadge.hidden = false;
     duplicatesBadge.textContent = dupes.length;
     const groups = {};
-    dupes.forEach(c => { const g = c.duplicateGroup||0; (groups[g]=groups[g]||[]).push(c); });
+    dupes.forEach(c => { const g = c.duplicate_group||0; (groups[g]=groups[g]||[]).push(c); });
     duplicatesList.innerHTML = Object.entries(groups).map(([_, cs]) => {
-        const phone = cs[0].normalizedPhones?.[0] || cs[0].phones?.[0] || 'N/A';
+        const phone = cs[0].normalized_phones?.[0] || cs[0].phones?.[0] || 'N/A';
         return `<div class="duplicate-group"><div class="duplicate-group-header"><span class="duplicate-group-phone">${escapeHtml(phone)}</span><span class="duplicate-group-count">${cs.length} contacts</span></div>${cs.map(c=>`<div class="duplicate-contact"><div><div class="duplicate-contact-name">${escapeHtml(c.name||'Unknown')}</div><div class="duplicate-contact-original">${c.phones.map(escapeHtml).join(', ')}</div></div></div>`).join('')}</div>`;
     }).join('');
 }

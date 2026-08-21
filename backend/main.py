@@ -2,6 +2,7 @@ from fastapi import FastAPI, File, UploadFile, Form, HTTPException
 from fastapi.responses import Response, JSONResponse
 from fastapi.middleware.cors import CORSMiddleware
 import uuid
+import traceback
 from typing import List
 from engine import VCFEngine
 
@@ -29,45 +30,51 @@ async def upload_files(
     rename_duplicates_only: bool = Form(False),
     duplicate_strategy: str = Form("first")
 ):
-    session_id = str(uuid.uuid4())
+    try:
+        session_id = str(uuid.uuid4())
 
-    files_content = []
-    for file in files:
-        if not file.filename.endswith('.vcf'):
-            continue
-        content = await file.read()
-        files_content.append(content.decode('utf-8', errors='ignore'))
+        files_content = []
+        for file in files:
+            if not file.filename.endswith('.vcf'):
+                continue
+            content = await file.read()
+            files_content.append(content.decode('utf-8', errors='ignore'))
 
-    if not files_content:
-        raise HTTPException(status_code=400, detail="No valid VCF files uploaded")
+        if not files_content:
+            raise HTTPException(status_code=400, detail="No valid VCF files uploaded")
 
-    engine = VCFEngine(format_type=format_type, naming_prefix=naming_prefix)
-    options = {
-        'detect_duplicates': detect_duplicates,
-        'remove_duplicates': remove_duplicates,
-        'rename_contacts': rename_contacts,
-        'rename_duplicates_only': rename_duplicates_only,
-        'duplicate_strategy': duplicate_strategy
-    }
+        engine = VCFEngine(format_type=format_type, naming_prefix=naming_prefix)
+        options = {
+            'detect_duplicates': detect_duplicates,
+            'remove_duplicates': remove_duplicates,
+            'rename_contacts': rename_contacts,
+            'rename_duplicates_only': rename_duplicates_only,
+            'duplicate_strategy': duplicate_strategy
+        }
 
-    result = engine.process_files(files_content, options)
+        result = engine.process_files(files_content, options)
 
-    processing_sessions[session_id] = {
-        'outputs': {
-            'all': result['all_vcf'],
-            'unique': result['unique_vcf'],
-            'duplicates': result['duplicates_vcf'],
-            'report': result['report']
-        },
-        'stats': result['stats'],
-        'contacts': result['contacts']
-    }
+        processing_sessions[session_id] = {
+            'outputs': {
+                'all': result['all_vcf'],
+                'unique': result['unique_vcf'],
+                'duplicates': result['duplicates_vcf'],
+                'report': result['report']
+            },
+            'stats': result['stats'],
+            'contacts': result['contacts']
+        }
 
-    return {
-        "session_id": session_id,
-        "stats": result['stats'],
-        "preview": result['contacts'][:50]
-    }
+        return {
+            "session_id": session_id,
+            "stats": result['stats'],
+            "preview": result['contacts'][:50]
+        }
+    except HTTPException:
+        raise
+    except Exception as e:
+        traceback.print_exc()
+        raise HTTPException(status_code=500, detail=f"Processing failed: {str(e)}")
 
 
 @app.get("/api/download/{session_id}/{file_type}")

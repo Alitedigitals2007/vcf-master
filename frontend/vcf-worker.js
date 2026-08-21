@@ -361,12 +361,14 @@ class VCFProcessor {
         };
     }
 
-    readFile(file) {
-        }
-
 // Web Worker Interface
 self.onmessage = async function(e) {
-    const { files, options } = e.data;
+    const { files, options, type } = e.data;
+    
+    if (type === 'ping') {
+        self.postMessage({ type: 'pong', data: { status: 'ok', version: '1.0' }});
+        return;
+    }
     
     try {
         console.log('Worker received', files.length, 'files');

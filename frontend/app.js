@@ -1,11 +1,12 @@
 /* ==========================================================================
-   ALITE VCF Manager - Clean Mobile-First JS
+   ALITE VCF Manager - Hybrid Processor (Server + Client-Side)
+   Supports 200MB+ files via client-side Web Worker processing
    ========================================================================== */
 
 const API_BASE = '/api';
 
 // Constants
-const MAX_UPLOAD_SIZE = 4 * 1024 * 1024; // 4MB safe limit for Vercel
+const MAX_UPLOAD_SIZE = 4 * 1024 * 1024; // 4MB safe limit for Vercel serverless
 
 // State
 let currentSessionId = null;
@@ -14,6 +15,8 @@ let allContacts = [];
 const PAGE_LIMIT = 50;
 let activeTab = 'preview';
 let selectedFiles = [];
+let useLocalProcessing = false;
+let worker = null;
 
 // DOM Elements
 const dropZone = document.getElementById('dropZone');
@@ -47,13 +50,51 @@ const downloadUnique = document.getElementById('downloadUnique');
 const downloadDuplicates = document.getElementById('downloadDuplicates');
 const downloadReport = document.getElementById('downloadReport');
 const toastContainer = document.getElementById('toastContainer');
+const processingMode = document.getElementById('processingMode');
+const localOption = document.getElementById('localOption');
+const serverOption = document.getElementById('serverOption');
+const progressSection = document.getElementById('progressSection');
+const progressBar = document.getElementById('progressBar');
+const progressText = document.getElementById('progressText');
+const progressStage = document.getElementById('progressStage');
 
 // Init
 function init() {
     bindEvents();
     updatePrefixPreview();
+    checkWorkerSupport();
 }
 
+function checkWorkerSupport() {
+    if (typeof Worker !== 'undefined') {
+        worker = new Worker('vcf-worker.js');
+        worker.onmessage = handleWorkerMessage;
+        worker.onerror = handleWorkerError;
+    } else {
+        // Hide local option if no worker support
+        if (localOption) localOption.style.display = 'none';
+        if (processingMode) processingMode.style.display = 'none';
+    }
+}
+
+function handleWorkerMessage(e) {
+    const { type, data, error } = e.data;
+    if (type === 'progress') {
+        updateProgress(data);
+    } else if (type === 'complete') {
+        finishLocalProcessing(data);
+    } else if (type === 'error') {
+        showToast('Local processing failed: ' + error, 'error');
+        setLoading(false);
+    }
+}
+
+function handleWorkerError(err) {
+    showToast('Worker error: ' + err.message, 'error');
+    setLoading(false);
+}
+
+// Bind Events
 function bindEvents() {
     // Drop zone
     ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(e => {
@@ -69,6 +110,10 @@ function bindEvents() {
     addFilesBtn.addEventListener('click', () => fileInput.click());
     clearBtn.addEventListener('click', clearFiles);
     processBtn.addEventListener('click', processFiles);
+
+    // Processing mode toggle
+    if (localOption) localOption.addEventListener('change', () => setProcessingMode('local'));
+    if (serverOption) serverOption.addEventListener('change', () => setProcessingMode('server'));
 
     // Options
     renameContacts.addEventListener('change', toggleNamingFormat);
@@ -86,6 +131,19 @@ function bindEvents() {
 
 function preventDefaults(e) { e.preventDefault(); e.stopPropagation(); }
 
+function setProcessingMode(mode) {
+    useLocalProcessing = mode === 'local';
+    if (localOption) localOption.checked = useLocalProcessing;
+    if (serverOption) serverOption.checked = !useLocalProcessing;
+    
+    // Show/hide file size warning
+    const totalSize = selectedFiles.reduce((sum, f) => sum + f.size, 0);
+    const warning = document.getElementById('sizeWarning');
+    if (warning) {
+        warning.style.display = (!useLocalProcessing && totalSize > MAX_UPLOAD_SIZE) ? 'block' : 'none';
+    }
+}
+
 // File Handling
 function handleDrop(e) {
     const files = [...e.dataTransfer.files].filter(f => f.name.toLowerCase().endsWith('.vcf'));
@@ -100,14 +158,13 @@ function handleFiles(e) {
 
 function addFiles(files) {
     let added = 0;
-    let totalSize = 0;
-    selectedFiles.forEach(f => totalSize += f.size);
+    let totalSize = selectedFiles.reduce((sum, f) => sum + f.size, 0);
     
     files.forEach(file => {
         if (!selectedFiles.some(f => f.name === file.name && f.size === file.size)) {
             totalSize += file.size;
-            if (totalSize > MAX_UPLOAD_SIZE) {
-                showToast(`File "${escapeHtml(file.name)}" would exceed 4MB limit. Vercel has a 4.5MB max upload size.`, 'error');
+            if (!useLocalProcessing && totalSize > MAX_UPLOAD_SIZE) {
+                showToast(`File "${escapeHtml(file.name)}" would exceed 4MB server limit. Enable "Local Processing" for large files.`, 'error');
                 return;
             }
             selectedFiles.push(file);
@@ -159,6 +216,12 @@ function updateUI() {
     const hasFiles = selectedFiles.length > 0;
     processBtn.disabled = !hasFiles;
     fileActions.hidden = !hasFiles;
+    
+    const totalSize = selectedFiles.reduce((sum, f) => sum + f.size, 0);
+    const warning = document.getElementById('sizeWarning');
+    if (warning) {
+        warning.style.display = (!useLocalProcessing && totalSize > MAX_UPLOAD_SIZE) ? 'block' : 'none';
+    }
 }
 
 function formatFileSize(b) {
@@ -180,6 +243,90 @@ function updatePrefixPreview() {
 async function processFiles() {
     if (selectedFiles.length === 0) return;
 
+    if (useLocalProcessing) {
+        await processFilesLocal();
+    } else {
+        await processFilesServer();
+    }
+}
+
+async function processFilesLocal() {
+    if (!worker) {
+        showToast('Local processing not supported in this browser', 'error');
+        return;
+    }
+
+    setLoading(true);
+    showProgress(true);
+    updateProgress({ stage: 'starting', percent: 0 });
+
+    try {
+        const options = {
+            formatType: document.getElementById('phoneFormat').value,
+            namingPrefix: prefixInput.value.trim() || 'Contact',
+            detectDuplicates: detectDuplicates.checked,
+            removeDuplicates: removeDuplicates.checked,
+            renameContacts: renameContacts.checked,
+            renameDuplicatesOnly: renameDuplicatesOnly.checked,
+            duplicateStrategy: document.getElementById('duplicateStrategy').value
+        };
+
+        // Convert File objects to array for worker
+        const fileArray = selectedFiles.map(f => f);
+        worker.postMessage({ files: fileArray, options });
+    } catch (err) {
+        showToast('Local processing error: ' + err.message, 'error');
+        setLoading(false);
+        showProgress(false);
+    }
+}
+
+function updateProgress(data) {
+    let percent = 0;
+    let text = '';
+    
+    switch (data.stage) {
+        case 'reading':
+            percent = Math.min(30, (data.file / data.total) * 30);
+            text = `Reading file ${data.file} of ${data.total}...`;
+            break;
+        case 'parsed':
+            percent = 40;
+            text = `Parsed ${data.count} contacts`;
+            break;
+        case 'duplicates':
+            percent = 70;
+            text = `Found ${data.stats.duplicateNumbers} duplicated numbers`;
+            break;
+        case 'complete':
+            percent = 100;
+            text = 'Complete!';
+            break;
+        default:
+            percent = data.percent || 0;
+            text = data.text || 'Processing...';
+    }
+    
+    progressBar.style.width = `${percent}%`;
+    progressText.textContent = `${Math.round(percent)}%`;
+    progressStage.textContent = text;
+}
+
+function finishLocalProcessing(result) {
+    allContacts = result.contacts;
+    currentSessionId = 'local-' + Date.now();
+    
+    // Store results for downloads
+    window.localResults = result;
+    
+    showResults(result.stats);
+    showResultsView();
+    showProgress(false);
+    setLoading(false);
+    showToast('Processing complete (local)', 'success');
+}
+
+async function processFilesServer() {
     setLoading(true);
     const formData = new FormData();
     selectedFiles.forEach(f => formData.append('files', f));
@@ -197,7 +344,7 @@ async function processFiles() {
             const err = await res.json().catch(() => ({ detail: 'Processing failed' }));
             let msg = err.detail || 'Processing failed';
             if (msg.includes('PAYLOAD_TOO_LARGE') || res.status === 413) {
-                msg = 'File too large for serverless function (max 4.5MB). Try splitting into smaller VCF files.';
+                msg = 'File too large for server (max 4.5MB). Enable "Local Processing" for large files.';
             }
             throw new Error(msg);
         }
@@ -209,6 +356,7 @@ async function processFiles() {
         showResultsView();
     } catch (err) {
         showToast(err.message, 'error');
+    } finally {
         setLoading(false);
     }
 }
@@ -216,6 +364,10 @@ async function processFiles() {
 function setLoading(loading) {
     processBtn.setAttribute('aria-busy', loading);
     processBtn.disabled = loading || selectedFiles.length === 0;
+}
+
+function showProgress(show) {
+    if (progressSection) progressSection.hidden = !show;
 }
 
 function showResultsView() {
@@ -230,26 +382,33 @@ function resetToHome() {
     currentPage = 1;
     allContacts = [];
     selectedFiles = [];
+    window.localResults = null;
     mainContent.querySelectorAll('.card').forEach(c => c.hidden = false);
     resultsSection.hidden = true;
     renderFileList();
     updateUI();
     switchTab('preview');
+    showProgress(false);
 }
 
 // Results
 function showResults(stats) {
     statsGrid.innerHTML = `
-        <div class="stat"><div class="stat-value">${stats.files_processed || 0}</div><div class="stat-label">Files</div></div>
-        <div class="stat"><div class="stat-value">${stats.total_contacts.toLocaleString()}</div><div class="stat-label">Total</div></div>
-        <div class="stat"><div class="stat-value">${stats.unique_contacts.toLocaleString()}</div><div class="stat-label">Unique</div></div>
-        <div class="stat"><div class="stat-value">${stats.duplicate_entries.toLocaleString()}</div><div class="stat-label">Duplicates</div></div>
-        <div class="stat"><div class="stat-value">${stats.duplicate_numbers.toLocaleString()}</div><div class="stat-label">Dup. Numbers</div></div>
+        <div class="stat"><div class="stat-value">${stats.filesProcessed || 1}</div><div class="stat-label">Files</div></div>
+        <div class="stat"><div class="stat-value">${stats.totalContacts.toLocaleString()}</div><div class="stat-label">Total</div></div>
+        <div class="stat"><div class="stat-value">${stats.uniqueContacts.toLocaleString()}</div><div class="stat-label">Unique</div></div>
+        <div class="stat"><div class="stat-value">${stats.duplicateEntries.toLocaleString()}</div><div class="stat-label">Duplicates</div></div>
+        <div class="stat"><div class="stat-value">${stats.duplicateNumbers.toLocaleString()}</div><div class="stat-label">Dup. Numbers</div></div>
     `;
 }
 
 async function loadPreviewPage(page) {
     if (!currentSessionId) return;
+    if (currentSessionId.startsWith('local-')) {
+        // For local processing, we have all contacts already
+        renderPreview(allContacts, allContacts.length);
+        return;
+    }
     try {
         const res = await fetch(`${API_BASE}/preview/${currentSessionId}?page=${page}&limit=${PAGE_LIMIT}`);
         if (!res.ok) throw new Error('Failed to load preview');
@@ -268,8 +427,8 @@ function renderPreview(contacts, total) {
         return;
     }
     tableBody.innerHTML = contacts.map((c, i) => {
-        const phone = c.normalized_phones?.[0] || c.phones?.[0] || 'N/A';
-        return `<tr><td>${(currentPage-1)*PAGE_LIMIT+i+1}</td><td>${escapeHtml(c.name||'Unknown')}</td><td><code>${escapeHtml(phone)}</code></td><td><span class="status ${c.is_duplicate?'duplicate':'unique'}">${c.is_duplicate?'Duplicate':'Unique'}</span></td></tr>`;
+        const phone = c.normalizedPhones?.[0] || c.phones?.[0] || 'N/A';
+        return `<tr><td>${(currentPage-1)*PAGE_LIMIT+i+1}</td><td>${escapeHtml(c.name||'Unknown')}</td><td><code>${escapeHtml(phone)}</code></td><td><span class="status ${c.isDuplicate?'duplicate':'unique'}">${c.isDuplicate?'Duplicate':'Unique'}</span></td></tr>`;
     }).join('');
     renderPagination(total);
 }
@@ -302,7 +461,7 @@ function switchTab(tab) {
 }
 
 function renderDuplicates() {
-    const dupes = allContacts.filter(c => c.is_duplicate);
+    const dupes = allContacts.filter(c => c.isDuplicate);
     if (!dupes.length) {
         duplicatesList.innerHTML = '';
         noDuplicates.hidden = false;
@@ -313,15 +472,42 @@ function renderDuplicates() {
     duplicatesBadge.hidden = false;
     duplicatesBadge.textContent = dupes.length;
     const groups = {};
-    dupes.forEach(c => { const g = c.duplicate_group||0; (groups[g]=groups[g]||[]).push(c); });
+    dupes.forEach(c => { const g = c.duplicateGroup||0; (groups[g]=groups[g]||[]).push(c); });
     duplicatesList.innerHTML = Object.entries(groups).map(([_, cs]) => {
-        const phone = cs[0].normalized_phones?.[0] || cs[0].phones?.[0] || 'N/A';
+        const phone = cs[0].normalizedPhones?.[0] || cs[0].phones?.[0] || 'N/A';
         return `<div class="duplicate-group"><div class="duplicate-group-header"><span class="duplicate-group-phone">${escapeHtml(phone)}</span><span class="duplicate-group-count">${cs.length} contacts</span></div>${cs.map(c=>`<div class="duplicate-contact"><div><div class="duplicate-contact-name">${escapeHtml(c.name||'Unknown')}</div><div class="duplicate-contact-original">${c.phones.map(escapeHtml).join(', ')}</div></div></div>`).join('')}</div>`;
     }).join('');
 }
 
 // Downloads
 function download(type) {
+    if (currentSessionId?.startsWith('local-')) {
+        downloadLocal(type);
+    } else {
+        downloadServer(type);
+    }
+}
+
+function downloadLocal(type) {
+    const results = window.localResults;
+    if (!results) return;
+    
+    const names = { all: 'ALL_CONTACTS.vcf', unique: 'UNIQUE_CONTACTS.vcf', duplicates: 'DUPLICATES.vcf', report: 'REPORT.txt' };
+    const content = results[`${type === 'all' ? 'allVcf' : type === 'unique' ? 'uniqueVcf' : type === 'duplicates' ? 'duplicatesVcf' : 'report'}`];
+    const mime = type === 'report' ? 'text/plain' : 'text/vcard';
+    
+    const blob = new Blob([content], { type: mime });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = names[type];
+    a.click();
+    a.remove();
+    URL.revokeObjectURL(url);
+    showToast(`${type} downloaded`, 'success');
+}
+
+function downloadServer(type) {
     if (!currentSessionId) return;
     const names = { all: 'ALL_CONTACTS.vcf', unique: 'UNIQUE_CONTACTS.vcf', duplicates: 'DUPLICATES.vcf', report: 'REPORT.txt' };
     const btn = document.getElementById(`download${type.charAt(0).toUpperCase()+type.slice(1)}`);

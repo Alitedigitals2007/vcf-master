@@ -163,8 +163,10 @@ function addFiles(files) {
     files.forEach(file => {
         if (!selectedFiles.some(f => f.name === file.name && f.size === file.size)) {
             totalSize += file.size;
+            // Local mode: virtually unlimited (browser memory ~1-2GB)
+            // Server mode: 4.5MB hard limit
             if (!useLocalProcessing && totalSize > MAX_UPLOAD_SIZE) {
-                showToast(`File "${escapeHtml(file.name)}" would exceed 4MB server limit. Enable "Local Processing" for large files.`, 'error');
+                showToast(`File "${escapeHtml(file.name)}" would exceed 4MB server limit. Enable "Local Processing" for large files (200MB+).`, 'error');
                 return;
             }
             selectedFiles.push(file);
@@ -196,8 +198,9 @@ function renderFileList() {
         fileCount.hidden = true;
         return;
     }
+    const totalSize = selectedFiles.reduce((sum, f) => sum + f.size, 0);
     fileCount.hidden = false;
-    fileCount.textContent = `${selectedFiles.length} file${selectedFiles.length > 1 ? 's' : ''}`;
+    fileCount.textContent = `${selectedFiles.length} file${selectedFiles.length > 1 ? 's' : ''} · ${formatFileSize(totalSize)}${useLocalProcessing ? ' (Local: 200MB+)' : totalSize > MAX_UPLOAD_SIZE ? ' ⚠️ >4MB' : ''}`;
     fileList.innerHTML = selectedFiles.map((file, i) => `
         <li class="file-item" style="animation-delay: ${i * 40}ms">
             <div class="file-info">

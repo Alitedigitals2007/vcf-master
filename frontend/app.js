@@ -1,5 +1,5 @@
 /* ==========================================================================
-   ALITE VCF Manager - Mobile App Experience
+   ALITE VCF Manager - Clean Mobile-First JS
    ========================================================================== */
 
 const API_BASE = '/api';
@@ -10,102 +10,58 @@ let currentPage = 1;
 let allContacts = [];
 const PAGE_LIMIT = 50;
 let activeTab = 'preview';
+let selectedFiles = [];
 
-// Screen Management
-const screens = {
-    home: document.getElementById('homeScreen'),
-    processing: document.getElementById('processingScreen'),
-    results: document.getElementById('resultsScreen')
-};
-
-let currentScreen = 'home';
-
-// DOM Elements - Home
+// DOM Elements
 const dropZone = document.getElementById('dropZone');
 const fileInput = document.getElementById('fileInput');
 const fileList = document.getElementById('fileList');
 const fileActions = document.getElementById('fileActions');
+const fileCount = document.getElementById('fileCount');
 const addFilesBtn = document.getElementById('addFilesBtn');
 const clearBtn = document.getElementById('clearBtn');
 const processBtn = document.getElementById('processBtn');
-const optionsCard = document.getElementById('optionsCard');
-const namingFormatGroup = document.getElementById('namingFormatGroup');
+const mainContent = document.getElementById('mainContent');
+const resultsSection = document.getElementById('resultsSection');
+const namingFormat = document.getElementById('namingFormat');
 const prefixInput = document.getElementById('prefixInput');
 const prefixPreview = document.getElementById('prefixPreview');
 const renameContacts = document.getElementById('renameContacts');
 const renameDuplicatesOnly = document.getElementById('renameDuplicatesOnly');
 const detectDuplicates = document.getElementById('detectDuplicates');
 const removeDuplicates = document.getElementById('removeDuplicates');
-
-// DOM Elements - Processing
-const progressPercent = document.getElementById('progressPercent');
-const progressRingFill = document.querySelector('.progress-ring-fill');
-const processingTitle = document.getElementById('processingTitle');
-const processingSubtitle = document.getElementById('processingSubtitle');
-const processingSteps = document.querySelectorAll('.step');
-
-// DOM Elements - Results
 const statsGrid = document.getElementById('statsGrid');
-const resultsSubtitle = document.getElementById('resultsSubtitle');
 const tableBody = document.getElementById('tableBody');
 const pagination = document.getElementById('pagination');
 const duplicatesList = document.getElementById('duplicatesList');
 const noDuplicates = document.getElementById('noDuplicates');
 const duplicatesBadge = document.getElementById('duplicatesBadge');
-const tabBtns = document.querySelectorAll('.tab-btn');
+const tabBtns = document.querySelectorAll('.tab');
 const tabPanels = document.querySelectorAll('.tab-panel');
 const backBtn = document.getElementById('backBtn');
-
-// Download buttons
 const downloadAll = document.getElementById('downloadAll');
 const downloadUnique = document.getElementById('downloadUnique');
 const downloadDuplicates = document.getElementById('downloadDuplicates');
 const downloadReport = document.getElementById('downloadReport');
-
-// Toast & Modal
 const toastContainer = document.getElementById('toastContainer');
-const successModal = document.getElementById('successModal');
-const modalTitle = document.getElementById('modalTitle');
-const modalMessage = document.getElementById('modalMessage');
-const modalOk = document.getElementById('modalOk');
 
-// File state
-let selectedFiles = [];
-
-// ==========================================================================
-// Initialization
-// ==========================================================================
-
+// Init
 function init() {
     bindEvents();
     updatePrefixPreview();
-    setupIntersectionObserver();
 }
 
 function bindEvents() {
     // Drop zone
-    ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(eventName => {
-        dropZone.addEventListener(eventName, preventDefaults, false);
-        document.body.addEventListener(eventName, preventDefaults, false);
+    ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(e => {
+        dropZone.addEventListener(e, preventDefaults, false);
+        document.body.addEventListener(e, preventDefaults, false);
     });
-
-    ['dragenter', 'dragover'].forEach(eventName => {
-        dropZone.addEventListener(eventName, () => dropZone.classList.add('is-drag-over'), false);
-    });
-
-    ['dragleave', 'drop'].forEach(eventName => {
-        dropZone.addEventListener(eventName, () => dropZone.classList.remove('is-drag-over'), false);
-    });
-
+    ['dragenter', 'dragover'].forEach(e => dropZone.addEventListener(e, () => dropZone.classList.add('drag-over'), false));
+    ['dragleave', 'drop'].forEach(e => dropZone.addEventListener(e, () => dropZone.classList.remove('drag-over'), false));
     dropZone.addEventListener('drop', handleDrop, false);
     dropZone.addEventListener('click', () => fileInput.click());
-    dropZone.addEventListener('keydown', (e) => {
-        if (e.key === 'Enter' || e.key === ' ') {
-            e.preventDefault();
-            fileInput.click();
-        }
-    });
-
+    dropZone.addEventListener('keydown', e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); fileInput.click(); } });
     fileInput.addEventListener('change', handleFiles);
     addFilesBtn.addEventListener('click', () => fileInput.click());
     clearBtn.addEventListener('click', clearFiles);
@@ -116,66 +72,18 @@ function bindEvents() {
     prefixInput.addEventListener('input', updatePrefixPreview);
 
     // Tabs
-    tabBtns.forEach(btn => {
-        btn.addEventListener('click', () => switchTab(btn.dataset.tab));
-    });
+    tabBtns.forEach(btn => btn.addEventListener('click', () => switchTab(btn.dataset.tab)));
 
     // Downloads
-    [downloadAll, downloadUnique, downloadDuplicates, downloadReport].forEach(btn => {
-        btn.addEventListener('click', () => download(btn.dataset.type));
-    });
+    [downloadAll, downloadUnique, downloadDuplicates, downloadReport].forEach(btn => btn.addEventListener('click', () => download(btn.dataset.type)));
 
-    // Navigation
-    backBtn.addEventListener('click', () => navigateTo('home'));
-
-    // Modal
-    modalOk.addEventListener('click', () => closeModal());
-    successModal.addEventListener('click', (e) => {
-        if (e.target === successModal) closeModal();
-    });
+    // Back
+    backBtn.addEventListener('click', resetToHome);
 }
 
-function preventDefaults(e) {
-    e.preventDefault();
-    e.stopPropagation();
-}
+function preventDefaults(e) { e.preventDefault(); e.stopPropagation(); }
 
-// ==========================================================================
-// Screen Navigation
-// ==========================================================================
-
-function navigateTo(screenName) {
-    const fromScreen = screens[currentScreen];
-    const toScreen = screens[screenName];
-
-    if (!toScreen || fromScreen === toScreen) return;
-
-    // Exit current screen
-    fromScreen.classList.add('is-exiting');
-
-    // Enter new screen
-    toScreen.hidden = false;
-    requestAnimationFrame(() => {
-        toScreen.classList.add('is-active');
-    });
-
-    // Cleanup after transition
-    setTimeout(() => {
-        fromScreen.classList.remove('is-active', 'is-exiting');
-        fromScreen.hidden = true;
-        currentScreen = screenName;
-    }, 300);
-
-    // Screen-specific logic
-    if (screenName === 'processing') {
-        startProcessingAnimation();
-    }
-}
-
-// ==========================================================================
 // File Handling
-// ==========================================================================
-
 function handleDrop(e) {
     const files = [...e.dataTransfer.files].filter(f => f.name.toLowerCase().endsWith('.vcf'));
     addFiles(files);
@@ -195,11 +103,9 @@ function addFiles(files) {
             added++;
         }
     });
-
     if (added > 0) {
         renderFileList();
-        updateProcessButton();
-        showFileActions();
+        updateUI();
         showToast(`Added ${added} file${added > 1 ? 's' : ''}`, 'success');
     }
 }
@@ -207,104 +113,65 @@ function addFiles(files) {
 function removeFile(index) {
     selectedFiles.splice(index, 1);
     renderFileList();
-    updateProcessButton();
-    if (selectedFiles.length === 0) hideFileActions();
+    updateUI();
 }
 
 function clearFiles() {
     selectedFiles = [];
     renderFileList();
-    updateProcessButton();
-    hideFileActions();
-    hideResults();
+    updateUI();
 }
 
 function renderFileList() {
     if (selectedFiles.length === 0) {
         fileList.innerHTML = '';
+        fileCount.hidden = true;
         return;
     }
-
-    fileList.innerHTML = selectedFiles.map((file, index) => `
-        <li class="file-item" style="animation-delay: ${index * 50}ms">
+    fileCount.hidden = false;
+    fileCount.textContent = `${selectedFiles.length} file${selectedFiles.length > 1 ? 's' : ''}`;
+    fileList.innerHTML = selectedFiles.map((file, i) => `
+        <li class="file-item" style="animation-delay: ${i * 40}ms">
             <div class="file-info">
-                <div class="file-icon" aria-hidden="true">
-                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                        <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
-                        <polyline points="14 2 14 8 20 8"/>
-                    </svg>
-                </div>
-                <div class="file-details">
-                    <span class="file-name">${escapeHtml(file.name)}</span>
-                    <span class="file-size">${formatFileSize(file.size)}</span>
+                <div class="file-icon"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg></div>
+                <div>
+                    <div class="file-name">${escapeHtml(file.name)}</div>
+                    <div class="file-size">${formatFileSize(file.size)}</div>
                 </div>
             </div>
-            <button class="btn btn--ghost" onclick="removeFile(${index})" aria-label="Remove ${escapeHtml(file.name)}">
-                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
-                    <line x1="18" y1="6" x2="6" y2="18"/>
-                    <line x1="6" y1="6" x2="18" y2="18"/>
-                </svg>
-            </button>
+            <button class="btn btn-secondary" onclick="removeFile(${i})" style="height:28px;padding:0 8px;font-size:.7rem;">Remove</button>
         </li>
     `).join('');
 }
 
-function showFileActions() {
-    fileActions.hidden = false;
-    requestAnimationFrame(() => {
-        fileActions.style.opacity = '1';
-        fileActions.style.transform = 'translateY(0)';
-    });
+function updateUI() {
+    const hasFiles = selectedFiles.length > 0;
+    processBtn.disabled = !hasFiles;
+    fileActions.hidden = !hasFiles;
 }
 
-function hideFileActions() {
-    fileActions.style.opacity = '0';
-    fileActions.style.transform = 'translateY(10px)';
-    setTimeout(() => {
-        fileActions.hidden = true;
-    }, 200);
-}
-
-function formatFileSize(bytes) {
-    if (bytes < 1024) return bytes + ' B';
-    if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(1) + ' KB';
-    return (bytes / (1024 * 1024)).toFixed(1) + ' MB';
-}
-
-function updateProcessButton() {
-    processBtn.disabled = selectedFiles.length === 0;
+function formatFileSize(b) {
+    if (b < 1024) return b + ' B';
+    if (b < 1024 * 1024) return (b / 1024).toFixed(1) + ' KB';
+    return (b / (1024 * 1024)).toFixed(1) + ' MB';
 }
 
 function toggleNamingFormat() {
-    const show = renameContacts.checked;
-    namingFormatGroup.hidden = !show;
-    if (show) {
-        requestAnimationFrame(() => {
-            namingFormatGroup.style.opacity = '1';
-            namingFormatGroup.style.transform = 'translateY(0)';
-        });
-    } else {
-        namingFormatGroup.style.opacity = '0';
-        namingFormatGroup.style.transform = 'translateY(-10px)';
-    }
+    namingFormat.hidden = !renameContacts.checked;
 }
 
 function updatePrefixPreview() {
-    const prefix = prefixInput.value.trim() || 'Contact';
-    prefixPreview.textContent = `${prefix} 0001`;
+    const p = prefixInput.value.trim() || 'Contact';
+    prefixPreview.textContent = `${p} 0001`;
 }
 
-// ==========================================================================
 // Processing
-// ==========================================================================
-
 async function processFiles() {
     if (selectedFiles.length === 0) return;
 
-    navigateTo('processing');
-
+    setLoading(true);
     const formData = new FormData();
-    selectedFiles.forEach(file => formData.append('files', file));
+    selectedFiles.forEach(f => formData.append('files', f));
     formData.append('format_type', document.getElementById('phoneFormat').value);
     formData.append('naming_prefix', prefixInput.value.trim() || 'Contact');
     formData.append('detect_duplicates', detectDuplicates.checked);
@@ -314,404 +181,159 @@ async function processFiles() {
     formData.append('duplicate_strategy', document.getElementById('duplicateStrategy').value);
 
     try {
-        const response = await fetch(`${API_BASE}/upload`, {
-            method: 'POST',
-            body: formData
-        });
-
-        if (!response.ok) {
-            const error = await response.json().catch(() => ({ detail: 'Processing failed' }));
-            throw new Error(error.detail || 'Processing failed');
+        const res = await fetch(`${API_BASE}/upload`, { method: 'POST', body: formData });
+        if (!res.ok) {
+            const err = await res.json().catch(() => ({ detail: 'Processing failed' }));
+            throw new Error(err.detail || 'Processing failed');
         }
-
-        const data = await response.json();
+        const data = await res.json();
         currentSessionId = data.session_id;
         allContacts = data.preview || [];
-
-        // Load full preview
         await loadPreviewPage(1);
-
-        // Show results after a brief delay for UX
-        setTimeout(() => {
-            showResults(data.stats);
-            navigateTo('results');
-        }, 500);
-
-    } catch (error) {
-        navigateTo('home');
-        showToast(error.message, 'error');
+        showResults(data.stats);
+        showResultsView();
+    } catch (err) {
+        showToast(err.message, 'error');
+        setLoading(false);
     }
 }
 
-function startProcessingAnimation() {
-    const steps = [
-        { title: 'Reading VCF files', subtitle: 'Parsing contact data...', step: 1, progress: 25 },
-        { title: 'Normalizing numbers', subtitle: 'Converting phone formats...', step: 2, progress: 50 },
-        { title: 'Detecting duplicates', subtitle: 'Finding matching contacts...', step: 3, progress: 75 },
-        { title: 'Generating outputs', subtitle: 'Creating VCF files...', step: 4, progress: 100 }
-    ];
-
-    let currentStep = 0;
-
-    function animateStep() {
-        if (currentStep >= steps.length) return;
-
-        const step = steps[currentStep];
-        processingTitle.textContent = step.title;
-        processingSubtitle.textContent = step.subtitle;
-
-        // Update progress ring
-        const circumference = 339;
-        const offset = circumference - (step.progress / 100) * circumference;
-        progressRingFill.style.strokeDashoffset = offset;
-        progressPercent.textContent = `${step.progress}%`;
-
-        // Update step indicators
-        processingSteps.forEach((el, i) => {
-            el.classList.remove('is-active', 'is-complete');
-            if (i < step.step - 1) el.classList.add('is-complete');
-            if (i === step.step - 1) el.classList.add('is-active');
-        });
-
-        currentStep++;
-        setTimeout(animateStep, 800);
-    }
-
-    animateStep();
+function setLoading(loading) {
+    processBtn.setAttribute('aria-busy', loading);
+    processBtn.disabled = loading || selectedFiles.length === 0;
 }
 
-// ==========================================================================
+function showResultsView() {
+    mainContent.querySelectorAll('.card:not(#resultsSection)').forEach(c => c.hidden = true);
+    resultsSection.hidden = false;
+    resultsSection.scrollIntoView({ behavior: 'smooth' });
+    setLoading(false);
+}
+
+function resetToHome() {
+    currentSessionId = null;
+    currentPage = 1;
+    allContacts = [];
+    selectedFiles = [];
+    mainContent.querySelectorAll('.card').forEach(c => c.hidden = false);
+    resultsSection.hidden = true;
+    renderFileList();
+    updateUI();
+    switchTab('preview');
+}
+
 // Results
-// ==========================================================================
-
 function showResults(stats) {
-    renderStats(stats);
-    resultsSubtitle.textContent = `${stats.total_contacts.toLocaleString()} contacts processed`;
-}
-
-function renderStats(stats) {
     statsGrid.innerHTML = `
-        <article class="stat-card">
-            <div class="stat-value">${stats.files_processed || 0}</div>
-            <div class="stat-label">Files</div>
-        </article>
-        <article class="stat-card">
-            <div class="stat-value">${stats.total_contacts.toLocaleString()}</div>
-            <div class="stat-label">Total Contacts</div>
-        </article>
-        <article class="stat-card">
-            <div class="stat-value">${stats.unique_contacts.toLocaleString()}</div>
-            <div class="stat-label">Unique</div>
-        </article>
-        <article class="stat-card">
-            <div class="stat-value">${stats.duplicate_entries.toLocaleString()}</div>
-            <div class="stat-label">Duplicates</div>
-        </article>
-        <article class="stat-card">
-            <div class="stat-value">${stats.duplicate_numbers.toLocaleString()}</div>
-            <div class="stat-label">Duplicated Numbers</div>
-        </article>
+        <div class="stat"><div class="stat-value">${stats.files_processed || 0}</div><div class="stat-label">Files</div></div>
+        <div class="stat"><div class="stat-value">${stats.total_contacts.toLocaleString()}</div><div class="stat-label">Total</div></div>
+        <div class="stat"><div class="stat-value">${stats.unique_contacts.toLocaleString()}</div><div class="stat-label">Unique</div></div>
+        <div class="stat"><div class="stat-value">${stats.duplicate_entries.toLocaleString()}</div><div class="stat-label">Duplicates</div></div>
+        <div class="stat"><div class="stat-value">${stats.duplicate_numbers.toLocaleString()}</div><div class="stat-label">Dup. Numbers</div></div>
     `;
 }
 
 async function loadPreviewPage(page) {
     if (!currentSessionId) return;
-
     try {
-        const response = await fetch(`${API_BASE}/preview/${currentSessionId}?page=${page}&limit=${PAGE_LIMIT}`);
-        if (!response.ok) throw new Error('Failed to load preview');
-
-        const data = await response.json();
+        const res = await fetch(`${API_BASE}/preview/${currentSessionId}?page=${page}&limit=${PAGE_LIMIT}`);
+        if (!res.ok) throw new Error('Failed to load preview');
+        const data = await res.json();
         allContacts = data.contacts;
         renderPreview(data.contacts, data.total);
-    } catch (error) {
-        console.error('Failed to load preview:', error);
+    } catch (e) {
         showToast('Failed to load preview', 'error');
     }
 }
 
 function renderPreview(contacts, total) {
-    if (!contacts || contacts.length === 0) {
-        tableBody.innerHTML = `
-            <tr>
-                <td colspan="4" style="text-align:center; padding: var(--space-10); color: var(--color-text-muted);">
-                    No contacts to display
-                </td>
-            </tr>
-        `;
+    if (!contacts?.length) {
+        tableBody.innerHTML = '<tr><td colspan="4" style="text-align:center;padding:32px;color:var(--text-muted)">No contacts</td></tr>';
         pagination.hidden = true;
         return;
     }
-
-    tableBody.innerHTML = contacts.map((contact, index) => {
-        const phone = contact.normalized_phones?.[0] || contact.phones?.[0] || 'N/A';
-        const isDuplicate = contact.is_duplicate;
-        return `
-            <tr style="animation-delay: ${index * 30}ms">
-                <td>${(currentPage - 1) * PAGE_LIMIT + index + 1}</td>
-                <td>${escapeHtml(contact.name || 'Unknown')}</td>
-                <td><code style="font-size: 0.8125rem;">${escapeHtml(phone)}</code></td>
-                <td>
-                    <span class="status-badge ${isDuplicate ? 'status-badge--duplicate' : 'status-badge--unique'}">
-                        ${isDuplicate ? 'Duplicate' : 'Unique'}
-                    </span>
-                </td>
-            </tr>
-        `;
+    tableBody.innerHTML = contacts.map((c, i) => {
+        const phone = c.normalized_phones?.[0] || c.phones?.[0] || 'N/A';
+        return `<tr><td>${(currentPage-1)*PAGE_LIMIT+i+1}</td><td>${escapeHtml(c.name||'Unknown')}</td><td><code>${escapeHtml(phone)}</code></td><td><span class="status ${c.is_duplicate?'duplicate':'unique'}">${c.is_duplicate?'Duplicate':'Unique'}</span></td></tr>`;
     }).join('');
-
     renderPagination(total);
 }
 
 function renderPagination(total) {
-    const totalPages = Math.ceil(total / PAGE_LIMIT);
-    if (totalPages <= 1) {
-        pagination.hidden = true;
-        return;
-    }
-
+    const pages = Math.ceil(total / PAGE_LIMIT);
+    if (pages <= 1) { pagination.hidden = true; return; }
     pagination.hidden = false;
-
-    let html = '';
-    html += `<button class="pagination-btn" ${currentPage === 1 ? 'disabled' : ''} onclick="changePage(${currentPage - 1})" aria-label="Previous page">
-        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="15 18 9 12 15 6"/></svg>
-    </button>`;
-
-    const start = Math.max(1, currentPage - 2);
-    const end = Math.min(totalPages, currentPage + 2);
-
-    if (start > 1) {
-        html += `<button class="pagination-btn" onclick="changePage(1)">1</button>`;
-        if (start > 2) html += `<span class="pagination-btn" style="cursor:default; border-color:transparent; background:none; color:var(--color-text-muted);">…</span>`;
-    }
-
-    for (let i = start; i <= end; i++) {
-        html += `<button class="pagination-btn" ${i === currentPage ? 'aria-current="page"' : ''} onclick="changePage(${i})">${i}</button>`;
-    }
-
-    if (end < totalPages) {
-        if (end < totalPages - 1) html += `<span class="pagination-btn" style="cursor:default; border-color:transparent; background:none; color:var(--color-text-muted);">…</span>`;
-        html += `<button class="pagination-btn" onclick="changePage(${totalPages})">${totalPages}</button>`;
-    }
-
-    html += `<button class="pagination-btn" ${currentPage === totalPages ? 'disabled' : ''} onclick="changePage(${currentPage + 1})" aria-label="Next page">
-        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9 18 15 12 9 6"/></svg>
-    </button>`;
-
+    let html = `<button ${currentPage===1?'disabled':''} onclick="changePage(${currentPage-1})">‹</button>`;
+    const start = Math.max(1, currentPage-2), end = Math.min(pages, currentPage+2);
+    if (start > 1) { html += `<button onclick="changePage(1)">1</button>`; if (start>2) html += `<span style="padding:0 8px;color:var(--text-muted)">…</span>`; }
+    for (let i=start;i<=end;i++) html += `<button class="${i===currentPage?'active':''}" onclick="changePage(${i})">${i}</button>`;
+    if (end < pages) { if (end<pages-1) html += `<span style="padding:0 8px;color:var(--text-muted)">…</span>`; html += `<button onclick="changePage(${pages})">${pages}</button>`; }
+    html += `<button ${currentPage===pages?'disabled':''} onclick="changePage(${currentPage+1})">›</button>`;
     pagination.innerHTML = html;
 }
 
 function changePage(page) {
     currentPage = page;
     loadPreviewPage(page);
-    // Smooth scroll to table top
     document.querySelector('.table-wrap')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
 }
 
-// ==========================================================================
-// Tab Switching
-// ==========================================================================
-
-function switchTab(tabName) {
-    activeTab = tabName;
-
-    tabBtns.forEach(btn => {
-        const isActive = btn.dataset.tab === tabName;
-        btn.setAttribute('aria-selected', isActive);
-    });
-
-    tabPanels.forEach(panel => {
-        panel.hidden = panel.id !== `${tabName}Panel`;
-    });
-
-    if (tabName === 'duplicates') {
-        renderDuplicates();
-    }
+// Tabs
+function switchTab(tab) {
+    activeTab = tab;
+    tabBtns.forEach(b => b.setAttribute('aria-selected', b.dataset.tab === tab));
+    tabPanels.forEach(p => p.hidden = p.id !== `${tab}Panel`);
+    if (tab === 'duplicates') renderDuplicates();
 }
 
 function renderDuplicates() {
-    const duplicateContacts = allContacts.filter(c => c.is_duplicate);
-
-    if (duplicateContacts.length === 0) {
+    const dupes = allContacts.filter(c => c.is_duplicate);
+    if (!dupes.length) {
         duplicatesList.innerHTML = '';
         noDuplicates.hidden = false;
         duplicatesBadge.hidden = true;
         return;
     }
-
     noDuplicates.hidden = true;
     duplicatesBadge.hidden = false;
-    duplicatesBadge.textContent = duplicateContacts.length;
-
-    // Group by duplicate_group
+    duplicatesBadge.textContent = dupes.length;
     const groups = {};
-    duplicateContacts.forEach(c => {
-        const groupId = c.duplicate_group || 0;
-        if (!groups[groupId]) groups[groupId] = [];
-        groups[groupId].push(c);
-    });
-
-    duplicatesList.innerHTML = Object.entries(groups).map(([groupId, contacts]) => {
-        const phone = contacts[0].normalized_phones?.[0] || contacts[0].phones?.[0] || 'N/A';
-        return `
-            <div class="duplicate-group">
-                <div class="duplicate-group-header">
-                    <span class="duplicate-group-phone">${escapeHtml(phone)}</span>
-                    <span class="duplicate-group-count">${contacts.length} contacts</span>
-                </div>
-                <div class="duplicate-contacts">
-                    ${contacts.map(c => `
-                        <div class="duplicate-contact">
-                            <div class="duplicate-contact-info">
-                                <span class="duplicate-contact-name">${escapeHtml(c.name || 'Unknown')}</span>
-                                <span class="duplicate-contact-original">Original: ${c.phones.map(escapeHtml).join(', ')}</span>
-                            </div>
-                        </div>
-                    `).join('')}
-                </div>
-            </div>
-        `;
+    dupes.forEach(c => { const g = c.duplicate_group||0; (groups[g]=groups[g]||[]).push(c); });
+    duplicatesList.innerHTML = Object.entries(groups).map(([_, cs]) => {
+        const phone = cs[0].normalized_phones?.[0] || cs[0].phones?.[0] || 'N/A';
+        return `<div class="duplicate-group"><div class="duplicate-group-header"><span class="duplicate-group-phone">${escapeHtml(phone)}</span><span class="duplicate-group-count">${cs.length} contacts</span></div>${cs.map(c=>`<div class="duplicate-contact"><div><div class="duplicate-contact-name">${escapeHtml(c.name||'Unknown')}</div><div class="duplicate-contact-original">${c.phones.map(escapeHtml).join(', ')}</div></div></div>`).join('')}</div>`;
     }).join('');
 }
 
-// ==========================================================================
 // Downloads
-// ==========================================================================
-
 function download(type) {
     if (!currentSessionId) return;
-
-    const filenames = {
-        all: 'ALL_CONTACTS.vcf',
-        unique: 'UNIQUE_CONTACTS.vcf',
-        duplicates: 'DUPLICATES.vcf',
-        report: 'REPORT.txt'
-    };
-
-    const btn = document.getElementById(`download${type.charAt(0).toUpperCase() + type.slice(1)}`);
-    const originalText = btn.innerHTML;
-
-    btn.innerHTML = `
-        <svg class="spinner" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
-            <circle cx="12" cy="12" r="10" stroke-opacity="0.25"/>
-            <path d="M12 2a10 10 0 0 1 10 10" stroke-linecap="round" stroke-opacity="1"/>
-        </svg>
-        <span>Downloading...</span>
-    `;
+    const names = { all: 'ALL_CONTACTS.vcf', unique: 'UNIQUE_CONTACTS.vcf', duplicates: 'DUPLICATES.vcf', report: 'REPORT.txt' };
+    const btn = document.getElementById(`download${type.charAt(0).toUpperCase()+type.slice(1)}`);
+    const orig = btn.innerHTML;
+    btn.innerHTML = `<span class="spinner" style="width:16px;height:16px;border-width:2px"></span> Downloading...`;
     btn.disabled = true;
-
     fetch(`${API_BASE}/download/${currentSessionId}/${type}`)
-        .then(response => {
-            if (!response.ok) throw new Error('Download failed');
-            return response.blob();
-        })
-        .then(blob => {
-            const url = URL.createObjectURL(blob);
-            const a = document.createElement('a');
-            a.href = url;
-            a.download = filenames[type];
-            document.body.appendChild(a);
-            a.click();
-            a.remove();
-            URL.revokeObjectURL(url);
-            showToast(`${type.charAt(0).toUpperCase() + type.slice(1)} downloaded`, 'success');
-        })
-        .catch(error => {
-            showToast('Download failed: ' + error.message, 'error');
-        })
-        .finally(() => {
-            btn.innerHTML = originalText;
-            btn.disabled = false;
-        });
+        .then(r => { if (!r.ok) throw new Error('Failed'); return r.blob(); })
+        .then(blob => { const u=URL.createObjectURL(blob); const a=document.createElement('a'); a.href=u; a.download=names[type]; a.click(); a.remove(); URL.revokeObjectURL(u); showToast(`${type} downloaded`, 'success'); })
+        .catch(() => showToast('Download failed', 'error'))
+        .finally(() => { btn.innerHTML = orig; btn.disabled = false; });
 }
 
-// ==========================================================================
-// Toast System
-// ==========================================================================
-
-function showToast(message, type = 'info') {
-    const toast = document.createElement('div');
-    toast.className = `toast toast--${type}`;
-    toast.setAttribute('role', 'alert');
-    toast.setAttribute('aria-live', 'polite');
-
-    const icons = {
-        success: '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>',
-        error: '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/></svg>',
-        info: '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>'
-    };
-
-    toast.innerHTML = `
-        <div class="toast-icon" aria-hidden="true">${icons[type]}</div>
-        <span class="toast-message">${escapeHtml(message)}</span>
-    `;
-
-    toastContainer.appendChild(toast);
-
-    setTimeout(() => {
-        toast.classList.add('is-hiding');
-        toast.addEventListener('animationend', () => toast.remove());
-    }, 4000);
+// Toasts
+function showToast(msg, type='info') {
+    const t = document.createElement('div');
+    t.className = `toast ${type}`;
+    t.innerHTML = `<div class="toast-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">${type==='success'?'<polyline points="20 6 9 17 4 12"/>':type==='error'?'<circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/>':'<circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/>'}</svg></div><span class="toast-message">${escapeHtml(msg)}</span>`;
+    toastContainer.appendChild(t);
+    setTimeout(() => { t.classList.add('hiding'); t.addEventListener('animationend',()=>t.remove()); }, 4000);
 }
 
-// ==========================================================================
-// Modal
-// ==========================================================================
+// Utils
+function escapeHtml(t) { const d=document.createElement('div'); d.textContent=t; return d.innerHTML; }
 
-function showSuccessModal(title, message) {
-    modalTitle.textContent = title;
-    modalMessage.textContent = message;
-    successModal.showModal();
-}
-
-function closeModal() {
-    successModal.close();
-}
-
-// ==========================================================================
-// Utilities
-// ==========================================================================
-
-function escapeHtml(text) {
-    const div = document.createElement('div');
-    div.textContent = text;
-    return div.innerHTML;
-}
-
-function setupIntersectionObserver() {
-    // For scroll animations if needed
-    const observer = new IntersectionObserver((entries) => {
-        entries.forEach(entry => {
-            if (entry.isIntersecting) {
-                entry.target.classList.add('is-visible');
-            }
-        });
-    }, { threshold: 0.1 });
-
-    document.querySelectorAll('.file-item, .stat-card, .step').forEach(el => {
-        observer.observe(el);
-    });
-}
-
-// Global functions for inline handlers
+// Globals for inline handlers
 window.removeFile = removeFile;
 window.changePage = changePage;
 
-// ==========================================================================
-// Start
-// ==========================================================================
-
 document.addEventListener('DOMContentLoaded', init);
-
-// Handle back button on mobile
-window.addEventListener('popstate', (e) => {
-    if (currentScreen !== 'home') {
-        e.preventDefault();
-        navigateTo('home');
-    }
-});
-
-// Prevent pull-to-refresh on iOS
-document.body.addEventListener('touchmove', (e) => {
-    if (e.touches.length > 1) e.preventDefault();
-}, { passive: false });

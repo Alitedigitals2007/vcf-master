@@ -26,21 +26,6 @@ A web-based VCF contact processing tool that handles multiple VCF files, detects
 - **Engine**: vobject for VCF parsing
 - **Deployment**: Vercel-ready
 
-## Quick Start
-
-### Local Development
-```bash
-cd vcf_manager
-pip install -r requirements.txt
-python -m uvicorn backend.main:app --reload
-# Open http://127.0.0.1:8000
-```
-
-### Deploy to Vercel
-```bash
-vercel --prod
-```
-
 ## API Endpoints
 
 | Method | Endpoint | Description |

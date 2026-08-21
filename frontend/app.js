@@ -4,6 +4,9 @@
 
 const API_BASE = '/api';
 
+// Constants
+const MAX_UPLOAD_SIZE = 4 * 1024 * 1024; // 4MB safe limit for Vercel
+
 // State
 let currentSessionId = null;
 let currentPage = 1;
@@ -97,8 +100,16 @@ function handleFiles(e) {
 
 function addFiles(files) {
     let added = 0;
+    let totalSize = 0;
+    selectedFiles.forEach(f => totalSize += f.size);
+    
     files.forEach(file => {
         if (!selectedFiles.some(f => f.name === file.name && f.size === file.size)) {
+            totalSize += file.size;
+            if (totalSize > MAX_UPLOAD_SIZE) {
+                showToast(`File "${escapeHtml(file.name)}" would exceed 4MB limit. Vercel has a 4.5MB max upload size.`, 'error');
+                return;
+            }
             selectedFiles.push(file);
             added++;
         }
@@ -184,7 +195,11 @@ async function processFiles() {
         const res = await fetch(`${API_BASE}/upload`, { method: 'POST', body: formData });
         if (!res.ok) {
             const err = await res.json().catch(() => ({ detail: 'Processing failed' }));
-            throw new Error(err.detail || 'Processing failed');
+            let msg = err.detail || 'Processing failed';
+            if (msg.includes('PAYLOAD_TOO_LARGE') || res.status === 413) {
+                msg = 'File too large for serverless function (max 4.5MB). Try splitting into smaller VCF files.';
+            }
+            throw new Error(msg);
         }
         const data = await res.json();
         currentSessionId = data.session_id;

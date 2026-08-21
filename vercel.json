@@ -8,6 +8,7 @@
     { "src": "/api/(.*)", "dest": "backend/main.py" },
     { "src": "/styles.css", "dest": "frontend/styles.css" },
     { "src": "/app.js", "dest": "frontend/app.js" },
+    { "src": "/vcf-worker.js", "dest": "frontend/vcf-worker.js" },
     { "src": "/(.*)", "dest": "frontend/index.html" }
   ]
 }

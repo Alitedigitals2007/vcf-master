@@ -69,9 +69,17 @@ function init() {
 
 function checkWorkerSupport() {
     if (typeof Worker !== 'undefined') {
-        worker = new Worker('vcf-worker.js');
-        worker.onmessage = handleWorkerMessage;
-        worker.onerror = handleWorkerError;
+        try {
+            worker = new Worker('vcf-worker.js');
+            worker.onmessage = handleWorkerMessage;
+            worker.onerror = handleWorkerError;
+            console.log('Worker initialized successfully');
+        } catch (e) {
+            console.error('Worker creation failed:', e);
+            showToast('Worker init failed: ' + e.message, 'error');
+            if (localOption) localOption.style.display = 'none';
+            if (processingMode) processingMode.style.display = 'none';
+        }
     } else {
         // Hide local option if no worker support
         if (localOption) localOption.style.display = 'none';
@@ -92,7 +100,9 @@ function handleWorkerMessage(e) {
 }
 
 function handleWorkerError(err) {
-    showToast('Worker error: ' + err.message, 'error');
+    console.error('Worker error:', err);
+    const msg = err.message || (err.filename + ':' + err.lineno + ' - ' + (err.error?.message || 'Unknown error'));
+    showToast('Worker error: ' + msg, 'error');
     setLoading(false);
 }
 

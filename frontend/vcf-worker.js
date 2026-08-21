@@ -303,15 +303,24 @@ class VCFProcessor {
         let totalSize = 0;
         
         for (let i = 0; i < files.length; i++) {
-            const content = await this.readFile(files[i]);
-            allContent += content + '\n';
-            totalSize += files[i].size;
-            if (onProgress) onProgress({ stage: 'reading', file: i + 1, total: files.length, bytes: totalSize });
+            try {
+                const content = await this.readFile(files[i]);
+                allContent += content + '\n';
+                totalSize += files[i].size;
+                if (onProgress) onProgress({ stage: 'reading', file: i + 1, total: files.length, bytes: totalSize });
+            } catch (e) {
+                throw new Error('Failed to read file "' + files[i].name + '": ' + e.message);
+            }
         }
 
         // Parse
         const parser = new VCFParser(this.options.formatType);
-        const contacts = parser.parse(allContent);
+        let contacts;
+        try {
+            contacts = parser.parse(allContent);
+        } catch (e) {
+            throw new Error('Failed to parse VCF content: ' + e.message);
+        }
         if (onProgress) onProgress({ stage: 'parsed', count: contacts.length });
 
         // Detect duplicates
@@ -371,12 +380,15 @@ self.onmessage = async function(e) {
     const { files, options } = e.data;
     
     try {
+        console.log('Worker received', files.length, 'files');
         const processor = new VCFProcessor(options);
         const result = await processor.process(files, (progress) => {
             self.postMessage({ type: 'progress', data: progress });
         });
+        console.log('Worker complete:', result.stats.totalContacts, 'contacts');
         self.postMessage({ type: 'complete', data: result });
     } catch (error) {
-        self.postMessage({ type: 'error', error: error.message });
+        console.error('Worker processing error:', error);
+        self.postMessage({ type: 'error', error: error.message + ' (stack: ' + error.stack + ')' });
     }
 };

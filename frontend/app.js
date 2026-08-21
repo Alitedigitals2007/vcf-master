@@ -71,7 +71,7 @@ function checkWorkerSupport() {
     if (typeof Worker !== 'undefined') {
         try {
             // Cache-bust with version parameter
-            worker = new Worker('minimal-worker.js?v=1');
+            worker = new Worker('vcf-worker.js?v=2');
             worker.onmessage = handleWorkerMessage;
             worker.onerror = handleWorkerError;
             console.log('Worker initialized successfully');
@@ -93,6 +93,8 @@ function checkWorkerSupport() {
 
 function handleWorkerMessage(e) {
     const { type, data, error } = e.data;
+    console.log('Main thread received worker message:', type, data);
+    
     if (type === 'progress') {
         updateProgress(data);
     } else if (type === 'complete') {
@@ -100,6 +102,13 @@ function handleWorkerMessage(e) {
     } else if (type === 'error') {
         showToast('Local processing failed: ' + error, 'error');
         setLoading(false);
+        showProgress(false);
+    } else if (type === 'pong') {
+        console.log('Worker pong received:', data);
+        showToast('Worker responding correctly!', 'success');
+    } else if (type === 'echo') {
+        console.log('Worker echo received:', data);
+        showToast('Worker echo: ' + JSON.stringify(data.original), 'info');
     }
 }
 

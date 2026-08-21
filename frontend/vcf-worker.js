@@ -298,19 +298,15 @@ class VCFProcessor {
     }
 
     async process(files, onProgress) {
-        // Read all files
+        // files is now array of {name, content, size}
         let allContent = '';
         let totalSize = 0;
         
         for (let i = 0; i < files.length; i++) {
-            try {
-                const content = await this.readFile(files[i]);
-                allContent += content + '\n';
-                totalSize += files[i].size;
-                if (onProgress) onProgress({ stage: 'reading', file: i + 1, total: files.length, bytes: totalSize });
-            } catch (e) {
-                throw new Error('Failed to read file "' + files[i].name + '": ' + e.message);
-            }
+            const file = files[i];
+            allContent += file.content + '\n';
+            totalSize += file.size;
+            if (onProgress) onProgress({ stage: 'reading', file: i + 1, total: files.length, bytes: totalSize });
         }
 
         // Parse
@@ -366,14 +362,7 @@ class VCFProcessor {
     }
 
     readFile(file) {
-        return new Promise((resolve, reject) => {
-            const reader = new FileReader();
-            reader.onload = e => resolve(e.target.result);
-            reader.onerror = reject;
-            reader.readAsText(file);
-        });
-    }
-}
+        }
 
 // Web Worker Interface
 self.onmessage = async function(e) {

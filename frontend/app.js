@@ -286,14 +286,29 @@ async function processFilesLocal() {
             duplicateStrategy: document.getElementById('duplicateStrategy').value
         };
 
-        // Convert File objects to array for worker
-        const fileArray = selectedFiles.map(f => f);
-        worker.postMessage({ files: fileArray, options });
+        // Read files in main thread, pass content to worker
+        const fileData = [];
+        for (const file of selectedFiles) {
+            const content = await readFileAsText(file);
+            fileData.push({ name: file.name, content, size: file.size });
+        }
+        
+        console.log('Sending to worker:', fileData.length, 'files');
+        worker.postMessage({ files: fileData, options });
     } catch (err) {
         showToast('Local processing error: ' + err.message, 'error');
         setLoading(false);
         showProgress(false);
     }
+}
+
+function readFileAsText(file) {
+    return new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = e => resolve(e.target.result);
+        reader.onerror = reject;
+        reader.readAsText(file);
+    });
 }
 
 function updateProgress(data) {

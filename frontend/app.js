@@ -71,7 +71,7 @@ function checkWorkerSupport() {
     if (typeof Worker !== 'undefined') {
         try {
             // Cache-bust with version parameter
-            worker = new Worker('vcf-worker.js?v=2');
+            worker = new Worker('vcf-worker.js?v=3');
             worker.onmessage = handleWorkerMessage;
             worker.onerror = handleWorkerError;
             console.log('Worker initialized successfully');

@@ -2,137 +2,352 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>ALITE VCF Manager - Merge • Clean • Detect • Rename • Export</title>
-    <link rel="stylesheet" href="styles.css">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+    <meta name="theme-color" content="#2563eb">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="ALITE VCF">
+    <title>ALITE VCF Manager</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="styles.css">
 </head>
 <body>
-    <div class="app-container">
-        <header class="header">
-            <div class="logo">
-                <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                    <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/>
-                    <circle cx="12" cy="10" r="3"/>
-                </svg>
-                <span>ALITE VCF MANAGER</span>
-            </div>
-            <p class="tagline">Merge • Clean • Detect • Rename • Export</p>
-        </header>
-
-        <main class="main-content">
-            <section class="upload-section" id="uploadSection">
-                <h2>📁 VCF FILES</h2>
-                <div class="drop-zone" id="dropZone">
-                    <input type="file" id="fileInput" multiple accept=".vcf" hidden>
-                    <div class="drop-content">
-                        <svg class="drop-icon" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
-                            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
-                            <polyline points="17 8 12 3 7 8"/>
-                            <line x1="12" y1="3" x2="12" y2="15"/>
+    <div class="app-shell">
+        <!-- Screen 1: Home / Upload -->
+        <section class="screen screen--home" id="homeScreen" data-screen="home">
+            <header class="screen-header">
+                <div class="brand">
+                    <div class="brand-icon" aria-hidden="true">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/>
+                            <circle cx="12" cy="10" r="3"/>
                         </svg>
-                        <p class="drop-text">Drag & drop VCF files here</p>
-                        <p class="drop-hint">or click to browse</p>
+                    </div>
+                    <div class="brand-text">
+                        <h1>ALITE VCF</h1>
+                        <span>Contact Manager</span>
                     </div>
                 </div>
-                <div class="file-list" id="fileList"></div>
-                <div class="file-actions">
-                    <button class="btn btn-secondary" id="addFilesBtn">Add Files</button>
-                    <button class="btn btn-secondary" id="clearBtn">Clear</button>
-                </div>
-            </section>
+            </header>
 
-            <section class="options-section">
-                <h2>⚙️ PROCESSING OPTIONS</h2>
-                <div class="options-grid">
-                    <label class="option-item">
-                        <input type="checkbox" id="mergeFiles" checked>
-                        <span>Merge all VCF files</span>
-                    </label>
-                    <label class="option-item">
-                        <input type="checkbox" id="detectDuplicates" checked>
-                        <span>Detect duplicate numbers</span>
-                    </label>
-                    <label class="option-item">
-                        <input type="checkbox" id="removeDuplicates" checked>
-                        <span>Remove duplicates</span>
-                    </label>
-                    <label class="option-item">
-                        <input type="checkbox" id="normalizeNumbers" checked>
-                        <span>Normalize Nigerian/international numbers</span>
-                    </label>
-                    <label class="option-item">
-                        <input type="checkbox" id="renameContacts">
-                        <span>Rename contacts</span>
-                    </label>
-                </div>
-                <div class="naming-format" id="namingFormat" style="display: none;">
-                    <label>Name format:</label>
-                    <div class="input-group">
-                        <input type="text" id="prefixInput" value="Contact" placeholder="Prefix">
-                        <span class="format-preview">{number}</span>
-                    </div>
-                    <label class="option-item">
-                        <input type="checkbox" id="renameDuplicatesOnly">
-                        <span>Only rename duplicates (keep original names for unique)</span>
-                    </label>
-                </div>
-                <div class="format-options">
-                    <label>Phone format:</label>
-                    <div class="radio-group">
-                        <label><input type="radio" name="format" value="international" checked> +234XXXXXXXXXX</label>
-                        <label><input type="radio" name="format" value="local"> 0XXXXXXXXXX</label>
+            <main class="screen-content">
+                <div class="drop-zone" id="dropZone" role="button" tabindex="0" aria-label="Drop zone for VCF files">
+                    <input type="file" id="fileInput" multiple accept=".vcf,.vcf" hidden aria-hidden="true">
+                    <div class="drop-zone-content">
+                        <div class="drop-icon-wrap">
+                            <svg class="drop-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true">
+                                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+                                <polyline points="17 8 12 3 7 8"/>
+                                <line x1="12" y1="3" x2="12" y2="15"/>
+                            </svg>
+                            <div class="pulse-ring"></div>
+                        </div>
+                        <h2 class="drop-title">Drop VCF Files Here</h2>
+                        <p class="drop-subtitle">or tap to browse</p>
+                        <p class="drop-hint">Supports multiple .vcf files</p>
                     </div>
                 </div>
-                <div class="duplicate-strategy">
-                    <label>Duplicate handling:</label>
-                    <select id="duplicateStrategy">
-                        <option value="first">Keep first occurrence</option>
-                        <option value="last">Keep last occurrence</option>
-                    </select>
+
+                <ul class="file-list" id="fileList" aria-label="Selected files"></ul>
+
+                <div class="file-actions" id="fileActions" hidden>
+                    <button class="btn btn--ghost" id="addFilesBtn">
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+                            <line x1="12" y1="5" x2="12" y2="19"/>
+                            <line x1="5" y1="12" x2="19" y2="12"/>
+                        </svg>
+                        <span>Add More</span>
+                    </button>
+                    <button class="btn btn--danger" id="clearBtn">
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+                            <polyline points="3 6 5 6 21 6"/>
+                            <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/>
+                        </svg>
+                        <span>Clear All</span>
+                    </button>
                 </div>
-            </section>
 
-            <button class="btn btn-primary btn-process" id="processBtn" disabled>
-                <span class="btn-text">PROCESS FILES</span>
-                <span class="btn-loader" style="display: none;"></span>
-            </button>
-        </main>
+                <div class="options-card" id="optionsCard">
+                    <div class="option-row">
+                        <label class="toggle">
+                            <input type="checkbox" id="detectDuplicates" checked>
+                            <span class="toggle-slider"></span>
+                            <div class="toggle-label">
+                                <strong>Detect Duplicates</strong>
+                                <span>Find same numbers across formats</span>
+                            </div>
+                        </label>
+                    </div>
+                    <div class="option-row">
+                        <label class="toggle">
+                            <input type="checkbox" id="removeDuplicates" checked>
+                            <span class="toggle-slider"></span>
+                            <div class="toggle-label">
+                                <strong>Remove Duplicates</strong>
+                                <span>Keep only unique contacts</span>
+                            </div>
+                        </label>
+                    </div>
+                    <div class="option-row">
+                        <label class="toggle">
+                            <input type="checkbox" id="normalizeNumbers" checked>
+                            <span class="toggle-slider"></span>
+                            <div class="toggle-label">
+                                <strong>Normalize Numbers</strong>
+                                <span>Convert to +234 / 0 format</span>
+                            </div>
+                        </label>
+                    </div>
+                    <div class="option-row">
+                        <label class="toggle">
+                            <input type="checkbox" id="renameContacts">
+                            <span class="toggle-slider"></span>
+                            <div class="toggle-label">
+                                <strong>Rename Contacts</strong>
+                                <span>Apply custom naming format</span>
+                            </div>
+                        </label>
+                    </div>
 
-        <section class="results-section" id="resultsSection" style="display: none;">
-            <h2>📊 RESULTS</h2>
-            <div class="stats-grid" id="statsGrid"></div>
-            
-            <div class="preview-section">
-                <h3>Contact Preview</h3>
-                <div class="table-container">
-                    <table id="previewTable">
-                        <thead>
-                            <tr>
-                                <th>#</th>
-                                <th>Original Name</th>
-                                <th>Phone Number</th>
-                                <th>Status</th>
-                            </tr>
-                        </thead>
-                        <tbody id="previewBody"></tbody>
-                    </table>
+                    <div class="nested-option" id="namingFormatGroup" hidden>
+                        <label class="input-field">
+                            <span class="input-label">Name Prefix</span>
+                            <div class="input-with-preview">
+                                <input type="text" id="prefixInput" value="Contact" placeholder="Enter prefix" maxlength="20">
+                                <span class="preview-badge" id="prefixPreview">Contact 0001</span>
+                            </div>
+                        </label>
+                        <label class="toggle toggle--compact">
+                            <input type="checkbox" id="renameDuplicatesOnly">
+                            <span class="toggle-slider"></span>
+                            <div class="toggle-label">
+                                <strong>Rename Duplicates Only</strong>
+                                <span>Keep original names for unique contacts</span>
+                            </div>
+                        </label>
+                    </div>
+
+                    <div class="option-row">
+                        <label class="select-field">
+                            <span class="select-label">Phone Format</span>
+                            <select id="phoneFormat">
+                                <option value="international">+234 801 234 5678</option>
+                                <option value="local">0801 234 5678</option>
+                            </select>
+                        </label>
+                    </div>
+
+                    <div class="option-row">
+                        <label class="select-field">
+                            <span class="select-label">Duplicate Strategy</span>
+                            <select id="duplicateStrategy">
+                                <option value="first">Keep First Occurrence</option>
+                                <option value="last">Keep Last Occurrence</option>
+                            </select>
+                        </label>
+                    </div>
                 </div>
-                <div class="pagination" id="pagination"></div>
-            </div>
 
-            <div class="download-section">
-                <button class="btn btn-success" id="downloadAll">Download All Contacts</button>
-                <button class="btn btn-success" id="downloadUnique">Download Unique Contacts</button>
-                <button class="btn btn-warning" id="downloadDuplicates">Download Duplicates</button>
-                <button class="btn btn-info" id="downloadReport">Download Report</button>
-            </div>
+                <button class="btn btn--primary btn--process" id="processBtn" disabled aria-busy="false">
+                    <span class="btn-content">
+                        <svg class="btn-icon" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+                            <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/>
+                            <circle cx="12" cy="10" r="3"/>
+                        </svg>
+                        <span class="btn-text">Process Contacts</span>
+                    </span>
+                    <div class="btn-loader" aria-hidden="true">
+                        <div class="spinner"></div>
+                        <span class="loader-text">Processing...</span>
+                    </div>
+                </button>
+            </main>
+
+            <footer class="screen-footer">
+                <p>Made by Alite · <a href="https://myalite.vercel.app" target="_blank" rel="noopener">myalite.vercel.app</a></p>
+            </footer>
         </section>
-    </div>
 
-    <footer class="footer">
-        Made by Alite | <a href="https://myalite.vercel.app" target="_blank">myalite.vercel.app</a>
-    </footer>
+        <!-- Screen 2: Processing / Loading -->
+        <section class="screen screen--processing" id="processingScreen" data-screen="processing" hidden aria-live="polite">
+            <header class="screen-header">
+                <div class="brand">
+                    <div class="brand-icon" aria-hidden="true">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/>
+                            <circle cx="12" cy="10" r="3"/>
+                        </svg>
+                    </div>
+                    <div class="brand-text">
+                        <h1>ALITE VCF</h1>
+                        <span>Processing...</span>
+                    </div>
+                </header>
+
+            <main class="screen-content">
+                <div class="processing-card">
+                    <div class="progress-ring-wrap">
+                        <svg class="progress-ring" viewBox="0 0 120 120" aria-hidden="true">
+                            <circle class="progress-ring-bg" cx="60" cy="60" r="54" fill="none" stroke-width="8"/>
+                            <circle class="progress-ring-fill" cx="60" cy="60" r="54" fill="none" stroke-width="8" stroke-linecap="round" stroke-dasharray="339" stroke-dashoffset="339"/>
+                        </svg>
+                        <div class="progress-center">
+                            <span class="progress-percent" id="progressPercent">0%</span>
+                        </div>
+                    </div>
+                    <h2 class="processing-title" id="processingTitle">Reading Files</h2>
+                    <p class="processing-subtitle" id="processingSubtitle">Preparing your contacts...</p>
+                    <div class="processing-steps" id="processingSteps">
+                        <div class="step" data-step="1">
+                            <span class="step-indicator"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg></span>
+                            <span class="step-label">Reading VCF files</span>
+                        </div>
+                        <div class="step" data-step="2">
+                            <span class="step-indicator"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg></span>
+                            <span class="step-label">Normalizing numbers</span>
+                        </div>
+                        <div class="step" data-step="3">
+                            <span class="step-indicator"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg></span>
+                            <span class="step-label">Detecting duplicates</span>
+                        </div>
+                        <div class="step" data-step="4">
+                            <span class="step-indicator"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg></span>
+                            <span class="step-label">Generating outputs</span>
+                        </div>
+                    </div>
+                </div>
+            </main>
+        </section>
+
+        <!-- Screen 3: Results -->
+        <section class="screen screen--results" id="resultsScreen" data-screen="results" hidden>
+            <header class="screen-header">
+                <button class="btn btn--icon btn--back" id="backBtn" aria-label="Back to home">
+                    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" aria-hidden="true">
+                        <line x1="19" y1="12" x2="5" y2="12"/>
+                        <polyline points="12 19 5 12 12 5"/>
+                    </svg>
+                </button>
+                <div class="brand">
+                    <div class="brand-icon" aria-hidden="true">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/>
+                            <circle cx="12" cy="10" r="3"/>
+                        </svg>
+                    </div>
+                    <div class="brand-text">
+                        <h1>Results</h1>
+                        <span id="resultsSubtitle">Processing complete</span>
+                    </div>
+                </div>
+            </header>
+
+            <main class="screen-content">
+                <div class="stats-grid" id="statsGrid" role="region" aria-label="Statistics"></div>
+
+                <div class="results-tabs" role="tablist" aria-label="Result views">
+                    <button class="tab-btn" role="tab" aria-selected="true" data-tab="preview">
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+                            <rect x="2" y="3" width="20" height="14" rx="2"/>
+                            <path d="M8 17h8M12 17v-5"/>
+                        </svg>
+                        <span>Preview</span>
+                    </button>
+                    <button class="tab-btn" role="tab" aria-selected="false" data-tab="duplicates">
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+                            <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/>
+                            <circle cx="9" cy="7" r="4"/>
+                            <path d="M23 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75"/>
+                        </svg>
+                        <span>Duplicates</span>
+                        <span class="tab-badge" id="duplicatesBadge" hidden>0</span>
+                    </button>
+                </div>
+
+                <div class="tab-panel" id="previewPanel" role="tabpanel" aria-label="Contact preview">
+                    <div class="table-wrap">
+                        <table class="data-table" id="dataTable">
+                            <thead>
+                                <tr>
+                                    <th scope="col">#</th>
+                                    <th scope="col">Name</th>
+                                    <th scope="col">Phone</th>
+                                    <th scope="col">Status</th>
+                                </tr>
+                            </thead>
+                            <tbody id="tableBody"></tbody>
+                        </table>
+                    </div>
+                    <nav class="pagination" id="pagination" aria-label="Pagination" hidden></nav>
+                </div>
+
+                <div class="tab-panel" id="duplicatesPanel" role="tabpanel" aria-label="Duplicates list" hidden>
+                    <div class="duplicates-list" id="duplicatesList"></div>
+                    <p class="empty-state" id="noDuplicates" hidden>No duplicates found</p>
+                </div>
+
+                <div class="action-bar">
+                    <button class="btn btn--primary btn--download" id="downloadAll" data-type="all">
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+                            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+                            <polyline points="7 10 12 15 17 10"/>
+                            <line x1="12" y1="15" x2="12" y2="3"/>
+                        </svg>
+                        <span>All Contacts</span>
+                    </button>
+                    <button class="btn btn--success btn--download" id="downloadUnique" data-type="unique">
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+                            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+                            <polyline points="7 10 12 15 17 10"/>
+                            <line x1="12" y1="15" x2="12" y2="3"/>
+                        </svg>
+                        <span>Unique Only</span>
+                    </button>
+                    <button class="btn btn--warning btn--download" id="downloadDuplicates" data-type="duplicates">
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+                            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+                            <polyline points="7 10 12 15 17 10"/>
+                            <line x1="12" y1="15" x2="12" y2="3"/>
+                        </svg>
+                        <span>Duplicates</span>
+                    </button>
+                    <button class="btn btn--info btn--download" id="downloadReport" data-type="report">
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+                            <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+                            <polyline points="14 2 14 8 20 8"/>
+                            <line x1="16" y1="13" x2="8" y2="13"/>
+                            <line x1="16" y1="17" x2="8" y2="17"/>
+                            <polyline points="10 9 9 9 8 9"/>
+                        </svg>
+                        <span>Report</span>
+                    </button>
+                </div>
+            </main>
+        </section>
+
+        <!-- Toast Container -->
+        <div class="toast-container" id="toastContainer" aria-live="polite"></div>
+
+        <!-- Success Modal -->
+        <dialog class="modal" id="successModal">
+            <div class="modal-backdrop" aria-hidden="true"></div>
+            <div class="modal-content">
+                <div class="modal-icon success">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" aria-hidden="true">
+                        <circle cx="12" cy="12" r="10"/>
+                        <polyline points="16 12 20 16 8 8"/>
+                    </svg>
+                </div>
+                <h3 id="modalTitle">Done!</h3>
+                <p id="modalMessage">Your contacts have been processed.</p>
+                <div class="modal-actions">
+                    <button class="btn btn--primary" id="modalOk">Continue</button>
+                </div>
+            </div>
+        </dialog>
+    </div>
 
     <script src="app.js"></script>
 </body>

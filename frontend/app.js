@@ -101,7 +101,8 @@ function handleWorkerMessage(e) {
 
 function handleWorkerError(err) {
     console.error('Worker error event:', err);
-    const msg = (err && (err.message || err.filename + ':' + err.lineno + ' - ' + (err.error?.message || ''))) || 'Unknown error';
+    // ErrorEvent has: message, filename, lineno, colno, error
+    const msg = err?.message || err?.error?.message || (err?.filename ? err.filename + ':' + err.lineno : '') || 'Unknown error';
     showToast('Worker error: ' + msg, 'error');
     setLoading(false);
 }
@@ -293,8 +294,25 @@ async function processFilesLocal() {
             fileData.push({ name: file.name, content, size: file.size });
         }
         
-        console.log('Sending to worker:', fileData.length, 'files');
+        console.log('Sending to worker:', fileData.length, 'files, total chars:', fileData.reduce((sum, f) => sum + f.content.length, 0));
+        
+        // Add timeout to detect worker hang
+        const timeout = setTimeout(() => {
+            showToast('Worker timeout - no response after 30s', 'error');
+            setLoading(false);
+            showProgress(false);
+        }, 30000);
+
+        // Listen for first response
+        const handleMessage = (e) => {
+            clearTimeout(timeout);
+            worker.onmessage = handleWorkerMessage; // restore normal handler
+            handleWorkerMessage(e);
+        };
+        
+        worker.onmessage = handleMessage;
         worker.postMessage({ files: fileData, options });
+        
     } catch (err) {
         showToast('Local processing error: ' + err.message, 'error');
         setLoading(false);

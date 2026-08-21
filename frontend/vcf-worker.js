@@ -370,6 +370,8 @@ self.onmessage = async function(e) {
     
     try {
         console.log('Worker received', files.length, 'files');
+        // Immediate response to confirm worker is alive
+        self.postMessage({ type: 'progress', data: { stage: 'starting', percent: 5, text: 'Worker started' }});
         const processor = new VCFProcessor(options);
         const result = await processor.process(files, (progress) => {
             self.postMessage({ type: 'progress', data: progress });

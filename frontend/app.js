@@ -100,8 +100,8 @@ function handleWorkerMessage(e) {
 }
 
 function handleWorkerError(err) {
-    console.error('Worker error:', err);
-    const msg = err.message || (err.filename + ':' + err.lineno + ' - ' + (err.error?.message || 'Unknown error'));
+    console.error('Worker error event:', err);
+    const msg = (err && (err.message || err.filename + ':' + err.lineno + ' - ' + (err.error?.message || ''))) || 'Unknown error';
     showToast('Worker error: ' + msg, 'error');
     setLoading(false);
 }

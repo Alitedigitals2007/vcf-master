@@ -381,3 +381,15 @@ self.onmessage = async function(e) {
         self.postMessage({ type: 'error', error: error.message + ' (stack: ' + error.stack + ')' });
     }
 };
+
+// Catch any unhandled errors in worker
+self.onerror = function(err) {
+    console.error('Worker unhandled error:', err);
+    self.postMessage({ type: 'error', error: 'Unhandled: ' + (err.message || err) });
+    return true;
+};
+
+self.addEventListener('unhandledrejection', function(event) {
+    console.error('Worker unhandled rejection:', event.reason);
+    self.postMessage({ type: 'error', error: 'Unhandled rejection: ' + event.reason });
+});
